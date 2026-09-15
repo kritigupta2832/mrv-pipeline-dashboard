@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Soil Sample MRV Pipeline Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --ink-dark: #1c2b28;
+    --forest: #2f5d50;
+    --forest-light: #4f8a76;
+    --amber: #c98a2b;
+    --paper: #f4f6f2;
+    --line: #dde3dc;
+    --danger: #b3452e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: var(--paper);
+    color: var(--ink-dark);
+  }
+  header {
+    background: var(--forest);
+    color: white;
+    padding: 28px 40px;
+  }
+  header h1 { margin: 0; font-size: 1.5rem; font-weight: 600; }
+  header p { margin: 4px 0 0; color: #cfe3db; font-size: 0.95rem; }
+
+  .stats {
+    display: flex;
+    gap: 20px;
+    padding: 24px 40px 0;
+    flex-wrap: wrap;
+  }
+  .stat-card {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 16px 20px;
+    min-width: 170px;
+  }
+  .stat-card .num { font-size: 1.8rem; font-weight: 700; color: var(--forest); }
+  .stat-card .label { font-size: 0.85rem; color: #6b756f; margin-top: 2px; }
+  .stat-card.flag .num { color: var(--danger); }
+  .stat-card.amber .num { color: var(--amber); }
+
+  main { padding: 24px 40px 60px; }
+  .panel {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 24px;
+    margin-bottom: 28px;
+  }
+  .panel h2 { margin-top: 0; font-size: 1.1rem; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { color: #6b756f; font-weight: 600; }
+  tr:hover { background: #fafbf9; }
+  .issue-row td:first-child { color: var(--danger); font-weight: 600; }
+
+  .scroll-table { max-height: 420px; overflow-y: auto; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Soil Sample MRV Pipeline Dashboard</h1>
+  <p>End-to-end sample tracking, from field registration to closed lab result</p>
+</header>
+
+<div class="stats">
+  <div class="stat-card">
+    <div class="num">{{ total_samples }}</div>
+    <div class="label">Total samples tracked</div>
+  </div>
+  <div class="stat-card">
+    <div class="num">{{ batch_count }}</div>
+    <div class="label">Active batches</div>
+  </div>
+  <div class="stat-card amber">
+    <div class="num">{{ avg_turnaround if avg_turnaround is not none else "—" }}</div>
+    <div class="label">Avg. field-to-lab turnaround (days)</div>
+  </div>
+  <div class="stat-card flag">
+    <div class="num">{{ qc_count }}</div>
+    <div class="label">Open QC issues</div>
+  </div>
+</div>
+
+<main>
+  <div class="panel">
+    <h2>Samples by pipeline stage</h2>
+    <canvas id="stageChart" height="90"></canvas>
+  </div>
+
+  <div class="panel">
+    <h2>QC issue log</h2>
+    {% if qc_issues %}
+    <table>
+      <thead><tr><th>Sample ID</th><th>Issue</th></tr></thead>
+      <tbody>
+        {% for issue in qc_issues %}
+        <tr class="issue-row"><td>{{ issue.Sample_ID }}</td><td>{{ issue.Issue }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p>No open QC issues detected.</p>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <h2>Full sample tracker</h2>
+    <div class="scroll-table">
+      <table>
+        <thead>
+          <tr>{% for col in columns %}<th>{{ col }}</th>{% endfor %}</tr>
+        </thead>
+        <tbody>
+          {% for row in table_rows %}
+          <tr>{% for col in columns %}<td>{{ row[col] if row[col] is not none else "" }}</td>{% endfor %}</tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script>
+  const ctx = document.getElementById('stageChart');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: {{ labels | tojson }},
+      datasets: [{
+        label: 'Samples',
+        data: {{ values | tojson }},
+        backgroundColor: '#4f8a76'
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+    }
+  });
+</script>
+
+</body>
+</html>
